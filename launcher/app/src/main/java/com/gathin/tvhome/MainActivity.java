@@ -592,7 +592,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnInputs = findViewById(R.id.btnInputs);
         View btnSettings = findViewById(R.id.btnSettings);
         btnInputs.setOnClickListener(v -> showInputs());
-        btnWifi.setOnClickListener(v -> openNetworkPill());
+        btnWifi.setOnClickListener(v -> {
+            if (wifiMenu) showWifi();
+            else openNetworkPill();
+        });
         btnWifi.setOnLongClickListener(v -> {
             open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
             return true;
@@ -622,6 +625,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         iconOnlyButtons = cfg.iconOnlyButtons;
         topMenu = cfg.topMenu;
         wifiIconOnly = iconOnlyButtons && cfg.wifiLabelWidth <= 0;
+        wifiMenu = cfg.wifiMenu;
         if (cfg.wifiStatusColor) {
             wifiPlainTint = btnWifi.getCompoundDrawableTintList();
             wifiOnlineTint = getColorStateList(R.color.pill_icon_online);
@@ -2463,6 +2467,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean launcherSettingsButton;
     /** icon_only_buttons without wifi_label_width: the Wi-Fi pill shows no network name. */
     private boolean wifiIconOnly;
+    private boolean wifiMenu;
     /** config.xml wifi_status_color: the Wi-Fi icon's green while online and its usual pill colours; null while off. */
     private ColorStateList wifiOnlineTint, wifiPlainTint;
     /** The app library button in the top bar (library_button). */
@@ -2857,6 +2862,46 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         int alignment = getResources().getBoolean(R.bool.rtl_menu_bar) != underGear ? Gravity.END : Gravity.START;
         dropIn(popup, panel, anchor, alignment);
+        rows.getChildAt(0).requestFocus();
+    }
+
+    /**
+     * wifi_menu: the Inputs dropdown's look under the Wi-Fi pill. The current network, then nearby ones from the
+     * system's last scan (no scan of our own: no polling), then Wi-Fi settings. An app cannot join a network on
+     * Android 10 and later, so a nearby network opens Wi-Fi settings, where the TV asks for its password.
+     */
+    private void showWifi() {
+        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
+        LinearLayout rows = panel.findViewById(R.id.rows);
+        int width = Math.max(btnWifi.getWidth(), (int) (220 * density));
+        final PopupWindow popup = glassPopup(panel, width);
+        Runnable wifiSettings = () -> open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
+        CharSequence current = wifiIconOnly ? btnWifi.getContentDescription() : btnWifi.getText();
+        String currentName = TextUtils.isEmpty(current) ? getString(R.string.quick_network) : current.toString();
+        addInputRow(rows, popup, R.drawable.ic_wifi, currentName, TvInputManager.INPUT_STATE_CONNECTED, wifiSettings);
+        List<String> nearby = new ArrayList<>();
+        try {
+            WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            List<android.net.wifi.ScanResult> scan = wm == null ? null : wm.getScanResults();
+            if (scan != null) {
+                Collections.sort(scan, (a, b) -> Integer.compare(b.level, a.level));
+                for (android.net.wifi.ScanResult r : scan) {
+                    String ssid = r.SSID == null ? "" : r.SSID.trim();
+                    if (!ssid.isEmpty() && !ssid.equals(currentName) && !nearby.contains(ssid)) nearby.add(ssid);
+                    if (nearby.size() == 5) break;
+                }
+            }
+        } catch (SecurityException e) {
+            // Location permission or location off: the list stays empty and Wi-Fi settings still lists them.
+        }
+        if (!nearby.isEmpty()) addSeparator(rows);
+        for (String ssid : nearby) addInputRow(rows, popup, R.drawable.ic_wifi, ssid, -1, wifiSettings);
+        addSeparator(rows);
+        addInputRow(rows, popup, R.drawable.ic_settings, getString(R.string.wifi), -1, wifiSettings);
+        panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        popup.setWidth(Math.max(width, Math.min(panel.getMeasuredWidth(), (int) (360 * density))));
+        // The pill sits near the right edge, so the list grows inward from it, as under the gear.
+        dropIn(popup, panel, btnWifi, getResources().getBoolean(R.bool.rtl_menu_bar) ? Gravity.START : Gravity.END);
         rows.getChildAt(0).requestFocus();
     }
 

@@ -481,6 +481,11 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         // already running resumes instead of restarting; only phone apps added from the library use plain MAIN.
         if (leanbackPackages.contains(e.pkg)) i.addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
         String action = launchActions.get(e.pkg);
+        if (RemoteKeys.inputId(action) != null) {
+            // "input:<id>" switches straight to that TV input, e.g. a set-top box on one HDMI port.
+            RemoteKeys.launch(ctx, action);
+            return;
+        }
         if (action != null) {
             // NEW_TASK only: with RESET_TASK_IF_NEEDED, Android just brings a running task of the app to the front
             // ("Activity not started"), so the screen never opens while the app is up, e.g. MagentaTV's boot-time task.

@@ -222,6 +222,10 @@
          the focused pill either way), so the connection shows at a glance, also as an icon-only button. Can also be
          set with "wifi_status_color": true in a theme's config.json. -->
     <bool name="wifi_status_color">false</bool>
+    <!-- true: the Wi-Fi pill opens a dropdown like the Inputs one, with the current network, nearby networks (each
+         opens the TV's Wi-Fi settings to join, since an app cannot switch networks) and a Wi-Fi settings row.
+         false keeps the pill opening Wi-Fi settings directly. Can also be set with "wifi_menu": true in a theme. -->
+    <bool name="wifi_menu">false</bool>
     <!-- The app library as a round button in the top bar, beside Settings (app_library must be on too). -->
     <bool name="library_button">false</bool>
     <!-- With icon_only_buttons: keep the network name on the Wi-Fi pill up to this width in dp, cut with an ellipsis.
